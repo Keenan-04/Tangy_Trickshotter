@@ -3,8 +3,8 @@ using UnityEngine;
 namespace Trickshot
 {
     /// <summary>
-    /// Builds a playable test range in code: a tall tower to jump off, targets, the player,
-    /// the rifle, scoring and the HUD. Nothing is saved into the scene.
+    /// Builds the aim-trainer range in code: a flat firing range with a back wall, the player,
+    /// the rifle, scoring, the trainer that spawns the dummies, the settings panel, and the HUD. Nothing is saved into the scene.
     /// Once you build a real level, wire the same components up by hand and remove this.
     /// </summary>
     public class TrickshotBootstrap : MonoBehaviour
@@ -12,13 +12,13 @@ namespace Trickshot
         const int IgnoreRaycastLayer = 2; // built-in layer, so the rifle never hits the player or the gun
 
         [Header("Range")]
-        public float towerHeight = 24f;
-        public int targetCount = 14;
+        public float wallDistance = 70f;
+        public float wallHeight = 14f;
+        public float[] distanceLines = { 15f, 30f, 45f };
 
         static readonly Color GroundColor = new Color(0.22f, 0.24f, 0.28f);
         static readonly Color BlockColor = new Color(0.42f, 0.45f, 0.52f);
-        static readonly Color TargetColor = new Color(1f, 0.55f, 0.05f);
-        static readonly Color MovingTargetColor = new Color(1f, 0.2f, 0.25f);
+        static readonly Color LineColor = new Color(0.34f, 0.37f, 0.43f);
         static readonly Color GunColor = new Color(0.12f, 0.12f, 0.14f);
 
         Shader litShader;
@@ -32,6 +32,17 @@ namespace Trickshot
             BuildRange();
             PlayerController player = BuildPlayer(out SniperRifle rifle);
 
+            var trainer = gameObject.AddComponent<AimTrainer>();
+            trainer.origin = Vector3.zero;
+            trainer.forward = Vector3.forward;
+
+            // Settings board to the front left of the firing point, just outside the arc the dummies use.
+            Vector3 toPanel = Quaternion.Euler(0f, -(trainer.arcDegrees + 17f), 0f) * Vector3.forward;
+            var panelGo = new GameObject("Config Panel");
+            panelGo.transform.position = trainer.origin + toPanel * 6f + Vector3.up * 1.6f;
+            panelGo.transform.rotation = Quaternion.LookRotation(toPanel); // its face points back at the player
+            panelGo.AddComponent<ConfigPanel>().trainer = trainer;
+
             var hud = gameObject.AddComponent<TrickshotHUD>();
             hud.player = player;
             hud.rifle = rifle;
@@ -39,39 +50,20 @@ namespace Trickshot
 
         void BuildRange()
         {
-            Transform root = new GameObject("Trickshot Range").transform;
+            Transform root = new GameObject("Trainer Range").transform;
 
-            Block(root, "Ground", new Vector3(0f, -0.5f, 0f), new Vector3(400f, 1f, 400f), GroundColor);
-            Block(root, "Tower", new Vector3(0f, towerHeight * 0.5f, 0f), new Vector3(12f, towerHeight, 12f), BlockColor);
-            Block(root, "Mid Platform", new Vector3(-20f, 6f, 6f), new Vector3(8f, 12f, 8f), BlockColor);
-            Block(root, "Low Platform", new Vector3(20f, 3f, -4f), new Vector3(8f, 6f, 8f), BlockColor);
+            Block(root, "Ground", new Vector3(0f, -0.5f, 0f), new Vector3(300f, 1f, 300f), GroundColor);
+            Block(root, "Back Wall", new Vector3(0f, wallHeight * 0.5f, wallDistance), new Vector3(160f, wallHeight, 1f), BlockColor);
 
-            // Targets fan out in front of the tower at mixed distances and heights.
-            for (int i = 0; i < targetCount; i++)
+            // Something to jump off for spins, behind and to the left of the firing point.
+            Block(root, "Jump Box", new Vector3(-7f, 1f, -3f), new Vector3(5f, 2f, 5f), BlockColor);
+
+            // Painted lines so you can judge how far away a target is.
+            foreach (float distance in distanceLines)
             {
-                float t = targetCount > 1 ? i / (targetCount - 1f) : 0.5f;
-                float angle = Mathf.Lerp(-70f, 70f, t) * Mathf.Deg2Rad;
-                float distance = 30f + (i % 4) * 18f;   // 30, 48, 66, 84 m
-                float height = 2f + (i % 3) * 5f;       // 2, 7, 12 m
-                bool moving = i % 3 == 2;
-
-                var pos = new Vector3(Mathf.Sin(angle) * distance, height, Mathf.Cos(angle) * distance);
-
-                GameObject go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                go.name = moving ? "Moving Target" : "Target";
-                go.transform.SetParent(root, false);
-                go.transform.position = pos;
-                go.transform.localScale = Vector3.one * 2f;
-                Paint(go, moving ? MovingTargetColor : TargetColor);
-
-                var target = go.AddComponent<Target>();
-                if (moving)
-                {
-                    target.basePoints = 150;
-                    target.moveAxis = new Vector3(Mathf.Cos(angle), 0f, -Mathf.Sin(angle)); // sideways from the tower
-                    target.moveDistance = 5f;
-                    target.moveSpeed = 1.2f;
-                }
+                GameObject line = Block(root, distance + " m line", new Vector3(0f, 0.005f, distance), new Vector3(70f, 0.01f, 0.25f), LineColor);
+                Collider col = line.GetComponent<Collider>();
+                if (col != null) Destroy(col);
             }
         }
 
@@ -79,7 +71,7 @@ namespace Trickshot
         {
             var playerGo = new GameObject("Player");
             playerGo.layer = IgnoreRaycastLayer;
-            playerGo.transform.position = new Vector3(0f, towerHeight + 0.1f, -3f);
+            playerGo.transform.position = new Vector3(0f, 0.1f, 0f);
 
             var cc = playerGo.AddComponent<CharacterController>();
             cc.height = 1.8f;

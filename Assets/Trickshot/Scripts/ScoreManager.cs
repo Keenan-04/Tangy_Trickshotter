@@ -12,11 +12,16 @@ namespace Trickshot
         public float spinDegrees;  // net rotation built up before the shot
         public bool airborne;
         public float distance;     // metres to whatever was hit
+        public HitZoneType zone;   // body part hit (only meaningful on a hit)
+        public bool killed;        // this shot finished the target
     }
 
     public class ShotResult
     {
         public bool hit;
+        public bool killed;
+        public bool headshot;
+        public float headMultiplier = 1f;
         public int points;
         public int basePoints;
         public float scopeMultiplier = 1f;
@@ -27,7 +32,8 @@ namespace Trickshot
     }
 
     /// <summary>
-    /// The scoring rules. points = base x scope x spin x style.
+    /// The scoring rules. points = base x head x scope x spin x style.
+    ///   head:  a headshot multiplies the kill.
     ///   scope: no-scope pays the most, a fast quickscope a bit less, and the multiplier
     ///          keeps draining the longer you stay scoped in.
     ///   spin:  every half turn (180) adds to the multiplier.
@@ -38,7 +44,12 @@ namespace Trickshot
     {
         public static ScoreManager Instance { get; private set; }
 
+        [Header("Headshots")]
+        public float headshotMultiplier = 1.5f;
+
         [Header("Scope")]
+        [Tooltip("On: a hardscoped hit scores nothing. The trainer switches this on for the quickscope drill.")]
+        public bool quickscopeOnly = false;
         [Tooltip("Multiplier for a shot fired without scoping at all. Keep this the highest.")]
         public float noScopeMultiplier = 3f;
         [Tooltip("Multiplier for a shot fired the instant you start scoping.")]
@@ -46,7 +57,7 @@ namespace Trickshot
         [Tooltip("Multiplier at the very end of the quickscope window.")]
         public float quickscopeMin = 1.5f;
         [Tooltip("Seconds after scoping in that still count as a quickscope.")]
-        public float quickscopeWindow = 0.5f;
+        public float quickscopeWindow = 0.65f;
         [Tooltip("Lowest multiplier a hardscope can drain to. Set it negative to make camping the scope cost points.")]
         public float hardscopeFloor = 0.1f;
         [Tooltip("Seconds scoped at which the multiplier reaches the floor.")]
@@ -62,13 +73,15 @@ namespace Trickshot
 
         [Header("Style bonuses (added together, then applied as 1 + total)")]
         public float airborneBonus = 0.5f;
-        public float longshotDistance = 60f;
+        public float longshotDistance = 40f;
         public float longshotBonus = 0.5f;
 
         public int Score { get; private set; }
         public int BestShot { get; private set; }
         public int ShotsFired { get; private set; }
         public int ShotsHit { get; private set; }
+        public int Kills { get; private set; }
+        public int Headshots { get; private set; }
         public ShotResult LastResult { get; private set; }
 
         /// <summary>Raised after every shot, hit or miss.</summary>
@@ -119,7 +132,18 @@ namespace Trickshot
         /// <summary>Works out what a hit would be worth without changing the score.</summary>
         public ShotResult Evaluate(ShotInfo shot, int basePoints)
         {
-            var r = new ShotResult { hit = true, basePoints = basePoints, time = Time.time };
+            var r = new ShotResult { hit = true, killed = shot.killed, basePoints = basePoints, time = Time.time };
+
+            if (shot.zone == HitZoneType.Head)
+            {
+                r.headshot = true;
+                r.headMultiplier = headshotMultiplier;
+                r.tags.Add("HEADSHOT");
+            }
+            else if (!shot.killed)
+            {
+                r.tags.Add("HIT");
+            }
 
             r.scopeMultiplier = ScopeMultiplier(shot.scoped, shot.scopeTime);
             if (!shot.scoped) r.tags.Add("NO SCOPE");
@@ -143,7 +167,13 @@ namespace Trickshot
             }
             r.bonusMultiplier = 1f + bonus;
 
-            r.points = Mathf.RoundToInt(basePoints * r.scopeMultiplier * r.spinMultiplier * r.bonusMultiplier);
+            r.points = Mathf.RoundToInt(basePoints * r.headMultiplier * r.scopeMultiplier * r.spinMultiplier * r.bonusMultiplier);
+
+            if (quickscopeOnly && shot.scoped && !IsQuickscope(shot.scopeTime))
+            {
+                r.points = 0;
+                r.tags.Add("TOO SLOW");
+            }
             return r;
         }
 
@@ -152,6 +182,8 @@ namespace Trickshot
             ShotResult r = Evaluate(shot, basePoints);
             ShotsFired++;
             ShotsHit++;
+            if (r.killed) Kills++;
+            if (r.killed && r.headshot) Headshots++;
             Score += r.points;
             if (r.points > BestShot) BestShot = r.points;
             Publish(r);
@@ -173,6 +205,8 @@ namespace Trickshot
             BestShot = 0;
             ShotsFired = 0;
             ShotsHit = 0;
+            Kills = 0;
+            Headshots = 0;
             LastResult = null;
         }
 

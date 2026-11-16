@@ -1,65 +1,120 @@
-# Trickshot prototype
+# Sniper aim trainer
 
-Press Play in any scene. If the scene has no player, `TrickshotAutoStart` builds a test range:
-a tower to jump off, 14 targets, the player, the rifle and the HUD.
+Press Play in any scene. If the scene has no player, `TrickshotAutoStart` builds the range:
+a flat firing lane with distance lines at 15, 30 and 45 m, a back wall, a box to jump off,
+the player, the rifle, the trainer, a settings panel and the HUD.
+
+You start in warm-up with targets up and nothing recorded. Press 1, 2 or 3 to start a 60 second round.
+
+## Modes
+
+| Key | Mode | What it trains |
+| --- | --- | --- |
+| 1 | Flick | Three targets at 15 to 45 m, standing still. A new one appears for every kill. |
+| 2 | Strafe | Two targets at 18 to 38 m with strafing switched on. |
+| 3 | Quickscope | One target at a time at 12 to 30 m. A hardscoped hit scores nothing. |
+
+The results screen shows score, kills per minute, headshot rate and accuracy. Best scores are
+saved between sessions, separately for each combination of mode and panel settings.
+
+## Settings panel
+
+The board stands to the front left of the firing point. Look at a control and click it. The rifle
+does not fire while you are aiming at the board, and a white dot shows where you are pointing.
+
+| Control | What it does | Range |
+| --- | --- | --- |
+| Strafing | Switches strafing on or off for every dummy, in any mode | on / off |
+| Strafe speed | How fast they strafe | 1 to 8 m/s |
+| Head size | Head diameter, hitbox included | half to three times the normal 25 cm |
+| Round length | How long the next round is scored for | 15 to 180 s |
+| START | Starts a round of the current mode with these settings | |
+
+Hold the mouse button and move along a slider to drag it. Strafing, speed and head size change the
+dummies that are already up. Pressing 1, 2 or 3 sets strafing back to that mode's default.
 
 ## Controls
 
 | Input | Action |
 | --- | --- |
+| 1 / 2 / 3 | Start (or restart) a round |
 | WASD / Shift / Space | Move / sprint / jump |
 | Right mouse (hold) | Scope |
+| Shift (while scoped) | Hold breath to steady the scope |
 | Left mouse | Fire |
-| R | Back to the top of the tower |
+| R | Back to the firing point |
 | [ and ] | Mouse sensitivity down / up |
 | Esc | Free the cursor (click to resume) |
 
+## Targets
+
+Each dummy is a 1.8 m person made of three hit zones:
+
+| Zone | Size | Result |
+| --- | --- | --- |
+| Head | 25 cm sphere, centred 1.64 m up | Kill, headshot multiplier |
+| Torso | 55 x 60 cm | Kill |
+| Legs | 42 x 90 cm | Hitmarker, second shot kills |
+
+A white hitmarker is a hit, a red one is a kill.
+
+## How the scope behaves
+
+- The rifle takes 0.38 s to come up. The black scope picture only appears for the last part of that.
+- A shot is pinpoint from the moment the scope is fully up. Any shot before that, and any no-scope,
+  lands in a random 5 degree cone. There is no crosshair at the hip.
+- The scope drifts in a slow figure of eight. Holding Shift steadies it for up to 4 s. Run out of
+  breath and it sways more than normal until you recover.
+- A shot throws the scope up and it settles back by itself while the bolt cycles (1 s between shots).
+- You move at 40% speed while scoped, and mouse speed follows the zoom.
+- The scope timer only resets once the scope is fully down, so tapping right mouse does not
+  turn a hardscope back into a quickscope.
+
 ## Scoring
 
-`points = target base x scope x spin x style`
+`points = base x head x scope x spin x style`
 
 | Part | Rule | Default |
 | --- | --- | --- |
-| Scope: no-scope | Highest multiplier, but shots land in a random 2 degree cone | x3.0 |
-| Scope: quickscope | Fired within 0.5 s of scoping in; faster is worth more | x2.5 down to x1.5 |
+| Base | Kill / leg hit that does not kill | 100 / 25 |
+| Head | Headshot | x1.5 |
+| Scope: no-scope | Highest multiplier, but the shot is in the hip-fire cone | x3.0 |
+| Scope: quickscope | Fired within 0.65 s of starting to scope; faster is worth more | x2.5 down to x1.5 |
 | Scope: hardscope | Keeps draining the longer you stay scoped | x1.5 down to x0.1 at 3 s |
 | Spin | Each 180 degrees turned in the air before the shot | +0.5 (360 = x2, 720 = x3) |
 | Style: airborne | Shot fired while off the ground | +0.5 |
-| Style: longshot | Hit from 60 m or more | +0.5 |
-| Target base | Orange static / red moving | 100 / 150 |
+| Style: longshot | Hit from 40 m or more | +0.5 |
 
-Example: no-scope 720 off the tower onto a far static target = 100 x 3.0 x 3.0 x 2.0 = 1,800.
+Because the scope takes 0.38 s to come up, the best accurate quickscope lands around x1.9.
+A quickscope headshot is 100 x 1.5 x 1.9 = 285.
 
-Details worth knowing:
-
-- The scope takes 0.22 s to come up and the rifle is only pinpoint once it has, so the best
-  accurate quickscope lands around x2.0.
-- The scope timer only resets once the scope is fully down, so tapping right mouse does not
-  turn a hardscope back into a quickscope.
-- Spins are net rotation in one direction. Turning back subtracts, and a spin is used up by the shot.
-- A spin stays valid for 0.25 s after landing.
+Spins are net rotation in one direction, are used up by the shot, and stay valid for 0.25 s after landing.
 
 ## Tuning
 
 Every number above is a public field. While playing, select these in the Hierarchy:
 
+- `Trickshot Bootstrap` > **Aim Trainer**: round length, spawn arc, distances per mode, strafe speed.
+- `Config Panel` > **Config Panel**: the range of each slider.
 - `Trickshot Bootstrap` > **Score Manager**: all multipliers, quickscope window, spin step, bonuses.
-  Set `Hardscope Floor` below zero if you want long hardscopes to subtract points.
+- `Trickshot Bootstrap` > **Trickshot HUD**: `Hip Crosshair` turns the hip-fire dot on.
+- `Main Camera` > **Sniper Rifle**: scope-in time, zoom, sway, breath, bolt time, hip spread, recoil.
 - `Player` > **Player Controller**: speed, jump height, gravity, sensitivity, `Count Ground Spins`.
-- `Main Camera` > **Sniper Rifle**: scope-in time, zoom, bolt time, no-scope spread.
 
 Changes made in Play mode are lost when you stop, so copy the values you like into the
-defaults at the top of each script.
+defaults at the top of each script. Head size is `Target.HeadDiameter`.
 
 ## Files
 
 | Script | Job |
 | --- | --- |
+| `AimTrainer` | Modes, round timer, target spawning, best scores |
+| `ConfigPanel` | The in-world settings board |
+| `Target` / `HitZone` | The dummy, its body parts, strafing |
+| `SniperRifle` | Scoping, sway, breath, recoil, firing, hit detection |
 | `ScoreManager` | The scoring rules and running totals |
 | `PlayerController` | Movement, mouse look, spin tracking |
-| `SniperRifle` | Scoping, scope timer, firing, hit detection |
-| `Target` | Shootable object, optional movement, respawn |
-| `TrickshotHUD` | Score, live multipliers, scope overlay, shot popups |
+| `TrickshotHUD` | Score, timer, results, scope overlay, hitmarkers, shot popups |
 | `TSInput` | All key and mouse bindings in one place |
-| `TrickshotBootstrap` | Builds the test range in code |
+| `TrickshotBootstrap` | Builds the range in code |
 | `TrickshotAutoStart` | Spawns the range on Play; delete when you have your own level |

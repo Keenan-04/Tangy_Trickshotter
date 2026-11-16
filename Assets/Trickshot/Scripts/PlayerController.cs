@@ -38,6 +38,9 @@ namespace Trickshot
         /// <summary>Set by the weapon to slow the mouse down while scoped.</summary>
         public float SensitivityScale { get; set; } = 1f;
 
+        /// <summary>Set by the weapon to slow you down while scoped. Sprinting is off below 1.</summary>
+        public float MoveSpeedScale { get; set; } = 1f;
+
         /// <summary>True while the cursor is locked and the game is taking input.</summary>
         public bool InputActive { get; private set; }
 
@@ -127,7 +130,8 @@ namespace Trickshot
             if (grounded) timeSinceGrounded = 0f;
             else timeSinceGrounded += dt;
 
-            float speed = InputActive && TSInput.SprintHeld ? sprintSpeed : walkSpeed;
+            bool sprinting = InputActive && TSInput.SprintHeld && MoveSpeedScale >= 0.99f;
+            float speed = (sprinting ? sprintSpeed : walkSpeed) * MoveSpeedScale;
             Vector3 wish = (transform.right * input.x + transform.forward * input.y) * speed;
 
             if (grounded)
