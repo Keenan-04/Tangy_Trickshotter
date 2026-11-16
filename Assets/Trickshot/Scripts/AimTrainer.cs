@@ -30,6 +30,7 @@ namespace Trickshot
         public int shotsHit;
         public int best;
         public bool newBest;
+        public int credits;
     }
 
     /// <summary>
@@ -44,6 +45,8 @@ namespace Trickshot
 
         [Header("Round")]
         public float roundSeconds = 60f;
+        [Tooltip("Round score is divided by this to give the credits earned.")]
+        public int scorePerCredit = 100;
         public float countdownSeconds = 3f;
 
         [Header("Spawning")]
@@ -100,9 +103,17 @@ namespace Trickshot
             }
         }
 
-        void Start()
+        void OnEnable()
         {
+            // Coming back from another mode: start clean in warm-up.
+            State = TrainerState.WarmUp;
             ApplyModeRules();
+            if (ScoreManager.Instance != null) ScoreManager.Instance.ResetScore();
+        }
+
+        void OnDisable()
+        {
+            ClearTargets();
         }
 
         void OnDestroy()
@@ -238,6 +249,9 @@ namespace Trickshot
                 PlayerPrefs.SetInt(BestKey(Mode), results.score);
                 PlayerPrefs.Save();
             }
+
+            results.credits = scorePerCredit > 0 ? results.score / scorePerCredit : 0;
+            Profile.AddCredits(results.credits);
 
             LastResults = results;
             ClearTargets();

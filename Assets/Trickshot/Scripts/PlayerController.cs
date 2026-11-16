@@ -68,6 +68,8 @@ namespace Trickshot
         {
             Instance = this;
             cc = GetComponent<CharacterController>();
+            spawnPosition = transform.position;
+            spawnRotation = transform.rotation;
         }
 
         void OnDestroy()
@@ -77,9 +79,12 @@ namespace Trickshot
 
         void Start()
         {
-            spawnPosition = transform.position;
-            spawnRotation = transform.rotation;
             SetCursorLocked(true);
+        }
+
+        void OnDisable()
+        {
+            InputActive = false; // switched off while the menu is up
         }
 
         void Update()

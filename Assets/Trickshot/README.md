@@ -1,10 +1,53 @@
-# Sniper aim trainer
+# Tangy Trickshotter
 
-Press Play in any scene. If the scene has no player, `TrickshotAutoStart` builds the range:
-a flat firing lane with distance lines at 15, 30 and 45 m, a back wall, a box to jump off,
-the player, the rifle, the trainer, a settings panel and the HUD.
+Press Play in any scene. If the scene has no player, `TrickshotAutoStart` builds everything in code
+and opens the main menu.
 
-You start in warm-up with targets up and nothing recorded. Press 1, 2 or 3 to start a 60 second round.
+## Main menu
+
+Modes are listed down the left, your character stands on the right, and there are three tabs.
+
+| Tab | What it does |
+| --- | --- |
+| Play | Pick Training, Team Deathmatch or Elimination, read its rules, press PLAY |
+| Inventory | TEMPLATE. Lists what you own; click to equip a rifle finish or an outfit |
+| Store | TEMPLATE. Buy finishes and outfits with credits |
+
+Use the mouse, or 1 / 2 / 3 to select a mode and Enter to play. Press M in any mode to come back.
+
+Items are placeholder colours defined in `Profile.Catalog`. The equipped outfit and finish show on
+the menu character, and the finish also colours the first-person rifle. You start with 500 credits,
+earn 1 per 100 points of a training round, and 50 for winning a match. Credits, purchases and the
+loadout are saved in PlayerPrefs.
+
+The character is a placeholder figure built from boxes (`CharacterModel`). Replace it with a real model.
+
+## Main game modes (templates)
+
+Team Deathmatch and Elimination are playable stand-ins that run on the training range. The enemy
+team is red dummies that strafe but do not shoot back, so the rules, score bar, clock and
+win/lose flow can be built on before there are real opponents or maps.
+
+| Mode | Rules as shipped |
+| --- | --- |
+| Team Deathmatch | First to 30 kills, 5 minute limit, 5 enemies up at once, enemies respawn after 2 s |
+| Elimination | First to 4 rounds, 4 enemies per round, no respawns, 90 s rounds; running out of time loses the round |
+
+Both extend `MatchMode`. Put the rules in `OnBegin`, `Tick` and `OnEnemyKilled`, and replace
+`SpawnEnemy` when there are real players or bots. Because the enemies cannot score, Team Deathmatch
+cannot be lost yet.
+
+## Sounds
+
+The rifle shot, bolt, scope-in, hitmarker tick, kill tone, headshot ring and menu click are
+placeholder sounds synthesised in `Sfx.cs`, so the project has no audio files. To use real
+recordings, drop clips into the **Sounds** fields on `Main Camera` > **Sniper Rifle**.
+
+# Training: the sniper aim trainer
+
+The range is a flat firing lane with distance lines at 15, 30 and 45 m, a back wall, a box to jump
+off and a settings panel. You start in warm-up with targets up and nothing recorded. Press 1, 2 or 3
+to start a 60 second round.
 
 ## Modes
 
@@ -38,6 +81,7 @@ dummies that are already up. Pressing 1, 2 or 3 sets strafing back to that mode'
 | Input | Action |
 | --- | --- |
 | 1 / 2 / 3 | Start (or restart) a round |
+| M | Back to the main menu |
 | WASD / Shift / Space | Move / sprint / jump |
 | Right mouse (hold) | Scope |
 | Shift (while scoped) | Hold breath to steady the scope |
@@ -108,7 +152,13 @@ defaults at the top of each script. Head size is `Target.HeadDiameter`.
 
 | Script | Job |
 | --- | --- |
-| `AimTrainer` | Modes, round timer, target spawning, best scores |
+| `MainMenu` | The menu, its tabs, and switching between the menu and a mode |
+| `Profile` | TEMPLATE: credits, item catalogue, owned items, loadout |
+| `CharacterModel` | TEMPLATE: the menu character |
+| `MatchMode` | TEMPLATE: shared base for the main game modes |
+| `TeamDeathmatchMode` / `EliminationMode` | TEMPLATE: the two main modes |
+| `Sfx` | Placeholder sound effects made in code |
+| `AimTrainer` | Training drills, round timer, target spawning, best scores |
 | `ConfigPanel` | The in-world settings board |
 | `Target` / `HitZone` | The dummy, its body parts, strafing |
 | `SniperRifle` | Scoping, sway, breath, recoil, firing, hit detection |
@@ -116,5 +166,5 @@ defaults at the top of each script. Head size is `Target.HeadDiameter`.
 | `PlayerController` | Movement, mouse look, spin tracking |
 | `TrickshotHUD` | Score, timer, results, scope overlay, hitmarkers, shot popups |
 | `TSInput` | All key and mouse bindings in one place |
-| `TrickshotBootstrap` | Builds the range in code |
+| `TrickshotBootstrap` | Builds the range, menu stage and every component in code |
 | `TrickshotAutoStart` | Spawns the range on Play; delete when you have your own level |

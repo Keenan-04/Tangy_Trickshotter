@@ -66,6 +66,7 @@ namespace Trickshot
             DrawBreath(w, h, ui);
 
             AimTrainer trainer = AimTrainer.Instance;
+            if (trainer != null && !trainer.isActiveAndEnabled) trainer = null; // another mode is running
             bool showingResults = trainer != null && trainer.State == TrainerState.Results;
 
             ScoreManager score = ScoreManager.Instance;
@@ -79,7 +80,7 @@ namespace Trickshot
             if (trainer != null) DrawTrainer(trainer, w, h, ui);
 
             Label(new Rect(24f * ui, h - 60f * ui, w, 40f * ui),
-                "1 2 3 start a round   WASD move   Space jump   RMB scope   Shift hold breath   LMB fire   R reset position   [ ] sensitivity   Esc free cursor",
+                (trainer != null ? "1 2 3 start a round   " : "") + "M menu   WASD move   Space jump   RMB scope   Shift hold breath   LMB fire   R reset position   [ ] sensitivity   Esc free cursor",
                 small, TextAnchor.UpperLeft, Dim);
 
             if (player != null && !player.InputActive)
@@ -200,7 +201,7 @@ namespace Trickshot
             if (r == null) return;
 
             float pw = 620f * ui;
-            float ph = 350f * ui;
+            float ph = 384f * ui;
             var panel = new Rect((w - pw) * 0.5f, h * 0.42f, pw, ph);
             GUI.color = new Color(0f, 0f, 0f, 0.78f);
             GUI.DrawTexture(panel, Texture2D.whiteTexture);
@@ -217,8 +218,9 @@ namespace Trickshot
             ResultLine(panel, ref y, ui, "Headshots  " + r.headshots + "   (" + Percent(r.headshots, r.kills) + " of kills)", Color.white);
             ResultLine(panel, ref y, ui, "Accuracy  " + Percent(r.shotsHit, r.shotsFired) + "   (" + r.shotsHit + " of " + r.shotsFired + " shots)", Color.white);
             ResultLine(panel, ref y, ui, r.newBest ? "NEW BEST" : "Best  " + r.best.ToString("N0"), r.newBest ? Good : Dim);
+            ResultLine(panel, ref y, ui, "+" + r.credits + " credits", Tangy);
             y += 10f * ui;
-            ResultLine(panel, ref y, ui, "Press 1, 2 or 3 to go again", Dim);
+            ResultLine(panel, ref y, ui, "1, 2 or 3 to go again        M for the menu", Dim);
         }
 
         void ResultLine(Rect panel, ref float y, float ui, string text, Color color)

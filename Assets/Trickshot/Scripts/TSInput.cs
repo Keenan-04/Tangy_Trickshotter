@@ -57,6 +57,10 @@ namespace Trickshot
             }
         }
 
+        public static bool MenuPressed => Keyboard.current != null && Keyboard.current.mKey.wasPressedThisFrame;
+        public static bool ConfirmPressed => Keyboard.current != null
+            && (Keyboard.current.enterKey.wasPressedThisFrame || Keyboard.current.numpadEnterKey.wasPressedThisFrame);
+
         public static bool FirePressed => Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
         public static bool FireHeld => Mouse.current != null && Mouse.current.leftButton.isPressed;
         public static bool AimHeld => Mouse.current != null && Mouse.current.rightButton.isPressed;

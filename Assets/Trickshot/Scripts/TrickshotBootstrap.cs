@@ -3,8 +3,9 @@ using UnityEngine;
 namespace Trickshot
 {
     /// <summary>
-    /// Builds the aim-trainer range in code: a flat firing range with a back wall, the player,
-    /// the rifle, scoring, the trainer that spawns the dummies, the settings panel, and the HUD. Nothing is saved into the scene.
+    /// Builds the whole game in code: the range with its back wall, the player, the rifle, scoring,
+    /// the trainer and its settings panel, the template match modes, the HUD, and the main menu
+    /// with its character stage. The game opens on the menu. Nothing is saved into the scene.
     /// Once you build a real level, wire the same components up by hand and remove this.
     /// </summary>
     public class TrickshotBootstrap : MonoBehaviour
@@ -16,9 +17,14 @@ namespace Trickshot
         public float wallHeight = 14f;
         public float[] distanceLines = { 15f, 30f, 45f };
 
+        [Header("Menu")]
+        [Tooltip("Where the menu's character stage is built. Keep it out of sight of the range.")]
+        public Vector3 menuStagePosition = new Vector3(0f, 0f, -100f);
+
         static readonly Color GroundColor = new Color(0.22f, 0.24f, 0.28f);
         static readonly Color BlockColor = new Color(0.42f, 0.45f, 0.52f);
         static readonly Color LineColor = new Color(0.34f, 0.37f, 0.43f);
+        static readonly Color BackdropColor = new Color(0.1f, 0.11f, 0.14f);
         static readonly Color GunColor = new Color(0.12f, 0.12f, 0.14f);
 
         Shader litShader;
@@ -46,6 +52,69 @@ namespace Trickshot
             var hud = gameObject.AddComponent<TrickshotHUD>();
             hud.player = player;
             hud.rifle = rifle;
+
+            // Main game modes (templates). They share the range until they get maps of their own.
+            var deathmatch = gameObject.AddComponent<TeamDeathmatchMode>();
+            var elimination = gameObject.AddComponent<EliminationMode>();
+
+            // Everything starts switched off: the menu turns on whatever the chosen mode needs.
+            trainer.enabled = false;
+            panelGo.SetActive(false);
+            player.enabled = false;
+            rifle.enabled = false;
+            hud.enabled = false;
+
+            BuildMenuStage(out Camera menuCamera, out CharacterModel character);
+
+            var menu = gameObject.AddComponent<MainMenu>();
+            menu.player = player;
+            menu.rifle = rifle;
+            menu.hud = hud;
+            menu.trainer = trainer;
+            menu.matchModes = new MatchMode[] { deathmatch, elimination };
+            menu.trainingProps = panelGo;
+            menu.menuCamera = menuCamera;
+            menu.character = character;
+        }
+
+        // A small stage well behind the range where the menu shows the player's character.
+        void BuildMenuStage(out Camera menuCamera, out CharacterModel character)
+        {
+            Vector3 centre = menuStagePosition;
+            Transform root = new GameObject("Menu Stage").transform;
+
+            GameObject disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            disc.name = "Podium";
+            disc.transform.SetParent(root, false);
+            disc.transform.position = centre + Vector3.up * 0.04f;
+            disc.transform.localScale = new Vector3(2.6f, 0.04f, 2.6f);
+            Paint(disc, BlockColor);
+
+            Block(root, "Backdrop", centre + new Vector3(1.1f, 4f, -3f), new Vector3(18f, 8f, 0.5f), BackdropColor);
+
+            character = CharacterModel.Build(litShader);
+            character.transform.SetParent(root, false);
+            character.transform.position = centre + Vector3.up * 0.08f;
+            character.transform.rotation = Quaternion.Euler(0f, 16f, 0f);
+
+            // The camera looks past the character's side, which puts the figure on the right of the screen
+            // and leaves the left free for the menu.
+            var camGo = new GameObject("Menu Camera");
+            camGo.transform.SetParent(root, false);
+            camGo.transform.position = centre + new Vector3(1.1f, 1.3f, 3.6f);
+            camGo.transform.rotation = Quaternion.Euler(4f, 180f, 0f);
+            menuCamera = camGo.AddComponent<Camera>();
+            menuCamera.fieldOfView = 40f;
+            menuCamera.nearClipPlane = 0.1f;
+            menuCamera.enabled = false;
+
+            var lightGo = new GameObject("Menu Key Light");
+            lightGo.transform.SetParent(root, false);
+            lightGo.transform.position = centre + new Vector3(-1.5f, 2.6f, 3f);
+            var keyLight = lightGo.AddComponent<Light>();
+            keyLight.type = LightType.Point;
+            keyLight.range = 12f;
+            keyLight.intensity = 22f;
         }
 
         void BuildRange()

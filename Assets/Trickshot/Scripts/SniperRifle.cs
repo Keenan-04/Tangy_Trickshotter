@@ -63,6 +63,18 @@ namespace Trickshot
         public float recoilRecovery = 7f;
         public LayerMask hitMask = Physics.DefaultRaycastLayers;
 
+        [Header("Sounds (leave empty to use the built-in placeholder sounds)")]
+        public AudioClip fireClip;
+        public AudioClip boltClip;
+        public AudioClip scopeClip;
+        public AudioClip hitClip;
+        public AudioClip killClip;
+        public AudioClip headshotClip;
+        [Range(0f, 1f)] public float fireVolume = 0.8f;
+        [Range(0f, 1f)] public float hitVolume = 0.9f;
+        [Tooltip("Seconds after the shot that the bolt sound starts.")]
+        public float boltSoundDelay = 0.3f;
+
         public bool IsAiming { get; private set; }
         /// <summary>0 = at the hip, 1 = fully scoped.</summary>
         public float AdsProgress { get; private set; }
@@ -84,6 +96,7 @@ namespace Trickshot
         float breath;
         float swayScale = 1f;
         Vector3 viewModelHipPosition;
+        bool viewModelReady;
         LineRenderer tracer;
         float tracerTimer;
 
@@ -93,7 +106,11 @@ namespace Trickshot
             if (cam == null) cam = Camera.main;
             if (player == null) player = GetComponentInParent<PlayerController>();
             if (cam != null) cam.fieldOfView = hipFov;
-            if (viewModel != null) viewModelHipPosition = viewModel.transform.localPosition;
+            if (viewModel != null)
+            {
+                viewModelHipPosition = viewModel.transform.localPosition;
+                viewModelReady = true;
+            }
             breath = holdBreathTime;
             BuildTracer();
         }
@@ -103,7 +120,9 @@ namespace Trickshot
             if (cam == null || player == null) return;
             float dt = Time.deltaTime;
 
+            bool wasAiming = IsAiming;
             IsAiming = player.InputActive && TSInput.AimHeld;
+            if (IsAiming && !wasAiming) Sfx.Play(SfxId.ScopeIn, 0.5f, scopeClip);
 
             float target = IsAiming ? 1f : 0f;
             AdsProgress = Mathf.MoveTowards(AdsProgress, target, dt / Mathf.Max(adsTime, 0.01f));
@@ -176,6 +195,8 @@ namespace Trickshot
         void Fire()
         {
             cooldown = boltTime;
+            Sfx.Play(SfxId.Shot, fireVolume, fireClip);
+            Sfx.PlayDelayed(SfxId.Bolt, boltSoundDelay, 0.6f, boltClip);
 
             bool scoped = IsScoped;
 
@@ -218,6 +239,11 @@ namespace Trickshot
             {
                 shot.zone = hitZone.zone;
                 shot.killed = hitTarget.TakeHit(hitZone.zone);
+
+                // Tick for a hit, a lower tone for a kill, a bright ring for a headshot.
+                if (shot.killed && shot.zone == HitZoneType.Head) Sfx.Play(SfxId.Headshot, hitVolume, headshotClip);
+                else if (shot.killed) Sfx.Play(SfxId.Kill, hitVolume, killClip);
+                else Sfx.Play(SfxId.Hit, hitVolume, hitClip);
                 if (score != null) score.RegisterHit(shot, shot.killed ? hitTarget.killPoints : hitTarget.hitPoints);
             }
             else if (score != null)
@@ -261,6 +287,31 @@ namespace Trickshot
             tracer.SetPosition(1, end);
             tracer.enabled = true;
             tracerTimer = 0.07f;
+        }
+
+        // Put the rifle back at the hip when it is switched off (for example when the menu opens).
+        void OnDisable()
+        {
+            IsAiming = false;
+            AdsProgress = 0f;
+            ScopeTime = 0f;
+            kick = 0f;
+            if (tracer != null) tracer.enabled = false;
+            if (cam != null)
+            {
+                cam.fieldOfView = hipFov;
+                cam.transform.localRotation = Quaternion.identity;
+            }
+            if (viewModel != null && viewModelReady)
+            {
+                viewModel.transform.localPosition = viewModelHipPosition;
+                viewModel.SetActive(true);
+            }
+            if (player != null)
+            {
+                player.SensitivityScale = 1f;
+                player.MoveSpeedScale = 1f;
+            }
         }
 
         void OnDestroy()
