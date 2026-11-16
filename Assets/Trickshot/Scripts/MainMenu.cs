@@ -164,11 +164,12 @@ namespace Trickshot
         void ApplyLoadout()
         {
             Color outfit = Profile.Equipped(ItemSlot.Outfit).color;
-            Color finish = Profile.Equipped(ItemSlot.RifleFinish).color;
+            ShopItem skin = Profile.Equipped(ItemSlot.RifleFinish);
+            Color finish = skin.color;
             ShopItem rifleItem = Profile.Equipped(ItemSlot.Rifle);
             WeaponStats weapon = rifleItem != null ? rifleItem.weapon : null;
 
-            if (character != null) character.SetLoadout(outfit, finish, weapon);
+            if (character != null) character.SetLoadout(outfit, skin, weapon, Profile.Equipped(ItemSlot.Hat));
             if (rifle == null) return;
 
             rifle.ApplyWeapon(weapon);
@@ -211,7 +212,7 @@ namespace Trickshot
 
             if (viewRifle != null)
             {
-                viewRifle.SetFinish(finish);
+                viewRifle.SetSkin(skin);
             }
             else
             {
@@ -269,7 +270,7 @@ namespace Trickshot
             // Name plate under the character.
             Text(new Rect(w - 620f * ui, h - 150f * ui, 580f * ui, 30f * ui), "YOUR OPERATOR", 20f, TextAnchor.MiddleRight, Dim);
             Text(new Rect(w - 620f * ui, h - 118f * ui, 580f * ui, 40f * ui),
-                Profile.Equipped(ItemSlot.Outfit).name + "   /   " + Profile.Equipped(ItemSlot.RifleFinish).name,
+                Profile.Equipped(ItemSlot.Rifle).name + "   /   " + Profile.Equipped(ItemSlot.RifleFinish).name,
                 26f, TextAnchor.MiddleRight, Color.white);
         }
 
@@ -296,46 +297,76 @@ namespace Trickshot
                 y += 34f;
             }
 
+            if (selected > 0)
+            {
+                Text(new Rect(70f * ui, h - 226f * ui, 760f * ui, 28f * ui),
+                    "Online matchmaking is built but not switched on yet. This plays offline.", 17f, TextAnchor.MiddleLeft, Dim);
+            }
+
             Rect play = new Rect(70f * ui, h - 190f * ui, 760f * ui, 92f * ui);
             if (Button(play, "PLAY  " + ModeName(selected), 36f, Tangy, Color.black)) Play(selected);
             Text(new Rect(70f * ui, h - 86f * ui, 760f * ui, 30f * ui), "1 2 3  select        ENTER  play        M  back to this menu",
                 18f, TextAnchor.MiddleLeft, Dim);
         }
 
-        // Rifle / finish / outfit switch shared by the Inventory and Store tabs.
+        // Rifle / skin / outfit / hat switch shared by the Inventory and Store tabs.
         void DrawSlotChips(float y)
         {
             int i = 0;
             foreach (ItemSlot slot in System.Enum.GetValues(typeof(ItemSlot)))
             {
                 bool current = slot == shownSlot;
-                if (Button(R(70f + i * 250f, y, 236f, 44f), SlotName(slot), 20f, current ? RowSelected : Row, Color.white)) shownSlot = slot;
+                if (Button(R(70f + i * 192f, y, 184f, 44f), SlotName(slot), 20f, current ? RowSelected : Row, Color.white)) shownSlot = slot;
                 i++;
             }
         }
 
+        // The equipped rifle's level, with a bar for progress to the next one.
+        void DrawWeaponLevel(float y)
+        {
+            ShopItem rifle = Profile.Equipped(ItemSlot.Rifle);
+            int level = Profile.WeaponLevel(rifle);
+            string max = level >= Profile.MaxWeaponLevel ? "  (MAX)" : "";
+            Text(R(70f, y, 400f, 32f), rifle.name + "    LEVEL " + level + max, 22f, TextAnchor.MiddleLeft, Color.white);
+            Fill(R(470f, y + 11f, 360f, 10f), Row);
+            Fill(R(470f, y + 11f, 360f * Profile.LevelProgress(rifle), 10f), Tangy);
+        }
+
         void DrawInventory()
         {
-            Text(R(70f, 212f, 760f, 28f), "What you own. Click to equip.", 18f, TextAnchor.MiddleLeft, Dim);
+            string hint = shownSlot == ItemSlot.RifleFinish
+                ? "Patterned skins unlock as the equipped rifle levels up. Kills earn weapon XP."
+                : "What you own. Click to equip.";
+            Text(R(70f, 212f, 760f, 28f), hint, 18f, TextAnchor.MiddleLeft, Dim);
             DrawSlotChips(250f);
 
             float y = 312f;
+            if (shownSlot == ItemSlot.Rifle || shownSlot == ItemSlot.RifleFinish)
+            {
+                DrawWeaponLevel(y);
+                y += 46f;
+            }
+
             ShopItem worn = Profile.Equipped(shownSlot);
             foreach (ShopItem item in Profile.Catalog)
             {
                 if (item.slot != shownSlot || !Profile.Owns(item)) continue;
                 ItemRow(item, y);
 
-                Rect b = R(630f, y + 8f, 190f, 44f);
-                if (item == worn) Button(b, "EQUIPPED", 20f, Good, Color.white, false);
+                Rect b = R(630f, y + 7f, 190f, 42f);
+                if (!Profile.Unlocked(item)) Button(b, "LEVEL " + item.level, 20f, Row, Color.white, false);
+                else if (item == worn) Button(b, "EQUIPPED", 20f, Good, Color.white, false);
                 else if (Button(b, "EQUIP", 20f, Tangy, Color.black)) Profile.Equip(item);
-                y += 66f;
+                y += 62f;
             }
         }
 
         void DrawStore()
         {
-            Text(R(70f, 212f, 760f, 28f), "Earn credits in Training and by winning matches.", 18f, TextAnchor.MiddleLeft, Dim);
+            string hint = shownSlot == ItemSlot.RifleFinish
+                ? "Plain colours are sold here. Patterned skins are earned: see Inventory."
+                : "Earn credits in Training and by winning matches.";
+            Text(R(70f, 212f, 760f, 28f), hint, 18f, TextAnchor.MiddleLeft, Dim);
             DrawSlotChips(250f);
 
             float y = 312f;
@@ -346,21 +377,29 @@ namespace Trickshot
                 any = true;
                 ItemRow(item, y);
 
-                Rect b = R(630f, y + 8f, 190f, 44f);
+                Rect b = R(630f, y + 7f, 190f, 42f);
                 if (Profile.Owns(item)) Button(b, "OWNED", 20f, Row, Color.white, false);
                 else if (Button(b, item.price.ToString("N0"), 22f, Tangy, Color.black, Profile.Credits >= item.price)) Profile.Buy(item);
-                y += 66f;
+                y += 62f;
             }
             if (!any) Text(R(70f, y, 760f, 40f), "Nothing to buy here yet.", 20f, TextAnchor.MiddleLeft, Dim);
         }
 
-        // Background, colour swatch and name of one item. The caller adds the button on the right.
+        // Background, swatch and name of one item. The caller adds the button on the right.
         void ItemRow(ShopItem item, float y)
         {
-            Fill(R(70f, y, 760f, 60f), Row);
-            Fill(R(82f, y + 8f, 44f, 44f), item.color);
-            Text(R(144f, y, 320f, 60f), item.name, 24f, TextAnchor.MiddleLeft, Color.white);
-            if (item.weapon != null) Text(R(290f, y, 330f, 60f), item.weapon.blurb, 16f, TextAnchor.MiddleLeft, Dim);
+            Fill(R(70f, y, 760f, 56f), Row);
+
+            Rect swatch = R(82f, y + 7f, 42f, 42f);
+            Texture2D pattern = SkinTextures.Get(item.pattern);
+            if (pattern != null) GUI.DrawTexture(swatch, pattern);
+            else Fill(swatch, item.color);
+
+            Text(R(144f, y, 320f, 56f), item.name, 24f, TextAnchor.MiddleLeft, Color.white);
+            if (item.weapon != null)
+                Text(R(290f, y, 330f, 56f), item.weapon.blurb + "   Lv " + Profile.WeaponLevel(item), 16f, TextAnchor.MiddleLeft, Dim);
+            else if (item.level > 1)
+                Text(R(400f, y, 220f, 56f), "Weapon level " + item.level, 16f, TextAnchor.MiddleLeft, Dim);
         }
 
         static string SlotName(ItemSlot slot)
@@ -368,8 +407,9 @@ namespace Trickshot
             switch (slot)
             {
                 case ItemSlot.Rifle: return "RIFLE";
-                case ItemSlot.RifleFinish: return "RIFLE FINISH";
-                default: return "OUTFIT";
+                case ItemSlot.RifleFinish: return "SKIN";
+                case ItemSlot.Outfit: return "OUTFIT";
+                default: return "HAT";
             }
         }
 

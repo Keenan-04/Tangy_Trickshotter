@@ -30,6 +30,8 @@ namespace Trickshot
         public Vector2 enemyDistance = new Vector2(15f, 45f);
         [Tooltip("Strafe speed of the stand-in enemies. 0 = they stand still.")]
         public float enemyStrafeSpeed = 3f;
+        [Tooltip("The enemy side. It decides the colour of the paint they leave when they die.")]
+        public Team enemyTeam = Team.Red;
         [Tooltip("Credits paid for winning a match.")]
         public int winCredits = 50;
 
@@ -155,6 +157,7 @@ namespace Trickshot
 
             Target enemy = Target.Build(position, lookAt, bodyMaterial, headMaterial);
             enemy.name = "Enemy (placeholder)";
+            enemy.team = enemyTeam;
             enemy.transform.SetParent(transform, true);
             enemy.strafeAxis = Vector3.Cross(Vector3.up, toEnemy);
             enemy.strafeSpeed = enemyStrafeSpeed * Random.Range(0.8f, 1.2f);

@@ -26,11 +26,24 @@ namespace Trickshot
         GUIStyle big, mid, small;
         ShotResult lastShot;
         ScoreManager subscribedTo;
+        string levelUpText;
+        float levelUpTime = -100f;
 
         void Start()
         {
             BuildScopeTexture();
             Subscribe();
+            Profile.LeveledUp += OnLevelUp;
+        }
+
+        void OnLevelUp(ShopItem rifle, int level)
+        {
+            levelUpText = rifle.name.ToUpper() + "  LEVEL " + level;
+            foreach (ShopItem item in Profile.Catalog)
+            {
+                if (item.slot == ItemSlot.RifleFinish && item.level == level) levelUpText += "     unlocked " + item.name;
+            }
+            levelUpTime = Time.time;
         }
 
         void Subscribe()
@@ -43,6 +56,7 @@ namespace Trickshot
         void OnDestroy()
         {
             if (subscribedTo != null) subscribedTo.ShotResolved -= OnShot;
+            Profile.LeveledUp -= OnLevelUp;
             if (scopeTexture != null) Destroy(scopeTexture);
         }
 
@@ -78,6 +92,9 @@ namespace Trickshot
             }
 
             if (trainer != null) DrawTrainer(trainer, w, h, ui);
+
+            if (levelUpText != null && Time.time - levelUpTime < 4f)
+                Label(new Rect(0f, h * 0.2f, w, 44f * ui), levelUpText, mid, TextAnchor.UpperCenter, Good);
 
             Label(new Rect(24f * ui, h - 60f * ui, w, 40f * ui),
                 (trainer != null ? "1 2 3 start a round   " : "") + "M menu   WASD move   Shift sprint   C slide   Space jump   RMB scope   Shift hold breath   LMB fire   R reset position   [ ] sensitivity   Esc free cursor",
@@ -242,6 +259,13 @@ namespace Trickshot
                 "Kills " + score.Kills + "    Headshots " + Percent(score.Headshots, score.Kills)
                 + "    Accuracy " + Percent(score.ShotsHit, score.ShotsFired) + "    Best shot " + score.BestShot.ToString("N0"),
                 small, TextAnchor.UpperLeft, Dim);
+
+            ShopItem rifle = Profile.Equipped(ItemSlot.Rifle);
+            if (rifle != null)
+            {
+                Label(new Rect(26f * ui, 122f * ui, 900f * ui, 40f * ui),
+                    rifle.name + "    weapon level " + Profile.WeaponLevel(rifle), small, TextAnchor.UpperLeft, Dim);
+            }
         }
 
         // Shows what the next shot is worth right now, so you can see the scope multiplier drain.

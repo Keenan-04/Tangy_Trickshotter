@@ -5,6 +5,7 @@ Run from the project root:
     blender -b --factory-startup -P ArtSource/build_rifles.py
 
 Each rifle is one mesh with four material slots (Finish, Metal, Polymer, Lens) and three
+box-mapped UVs for tiling skins, plus three
 child empties the game uses to line the model up, whatever the export axes turn out to be:
     Muzzle  tip of the barrel
     Top     straight above the grip
@@ -25,6 +26,8 @@ MATERIALS = [
     ("Polymer", (0.03, 0.03, 0.035, 1.0), 0.0, 0.7),
     ("Lens", (0.15, 0.55, 0.9, 1.0), 0.0, 0.1),
 ]
+
+UV_TILES_PER_METRE = 5.0  # a skin texture repeats every 20 cm
 
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(PROJECT, "Assets", "Trickshot", "Resources", "Rifles")
@@ -246,6 +249,23 @@ def make_materials():
 def to_object(gun, mats):
     me = bpy.data.meshes.new(gun.name)
     bmesh.ops.remove_doubles(gun.bm, verts=gun.bm.verts, dist=0.00001)
+
+    # Box-mapped UVs: each face is unwrapped flat along whichever axis it faces most, at the same
+    # scale everywhere, so tiling skin textures have an even size across the whole rifle.
+    gun.bm.normal_update()
+    uv = gun.bm.loops.layers.uv.new("UVMap")
+    for f in gun.bm.faces:
+        n = f.normal
+        axis = max(range(3), key=lambda i: abs(n[i]))
+        for loop in f.loops:
+            co = loop.vert.co
+            if axis == 0:
+                u, v = co.y, co.z
+            elif axis == 1:
+                u, v = co.x, co.z
+            else:
+                u, v = co.x, co.y
+            loop[uv].uv = (u * UV_TILES_PER_METRE, v * UV_TILES_PER_METRE)
     gun.bm.to_mesh(me)
     gun.bm.free()
     for m in mats:

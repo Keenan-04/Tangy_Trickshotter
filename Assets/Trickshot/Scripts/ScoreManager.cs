@@ -182,7 +182,11 @@ namespace Trickshot
             ShotResult r = Evaluate(shot, basePoints);
             ShotsFired++;
             ShotsHit++;
-            if (r.killed) Kills++;
+            if (r.killed)
+            {
+                Kills++;
+                Profile.AddWeaponXp(r.headshot ? Profile.HeadshotXp : Profile.KillXp); // levels the equipped rifle
+            }
             if (r.killed && r.headshot) Headshots++;
             Score += r.points;
             if (r.points > BestShot) BestShot = r.points;

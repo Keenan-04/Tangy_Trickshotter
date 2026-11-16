@@ -32,6 +32,7 @@ namespace Trickshot
         public Vector3 eyeLocal = new Vector3(0f, 0.16f, -0.2f);
 
         Material finish, metal, polymer, lens;
+        Vector2 scroll;
 
         /// <summary>Loads and prepares a rifle under parent. Returns null if the model file is missing.</summary>
         public static RifleModel Spawn(WeaponStats weapon, Transform parent, Shader litShader)
@@ -99,9 +100,19 @@ namespace Trickshot
             }
         }
 
-        public void SetFinish(Color color)
+        /// <summary>Puts a skin on the rifle's painted parts: a plain colour or a pattern.</summary>
+        public void SetSkin(ShopItem skin)
         {
-            if (finish != null) finish.color = color;
+            if (finish == null || skin == null) return;
+            SkinTextures.Apply(finish, skin);
+            scroll = SkinTextures.Scroll(skin.pattern);
+        }
+
+        void Update()
+        {
+            // Some skins drift slowly across the rifle.
+            if (finish != null && scroll != Vector2.zero)
+                finish.mainTextureOffset += scroll * Time.unscaledDeltaTime;
         }
 
         void OnDestroy()

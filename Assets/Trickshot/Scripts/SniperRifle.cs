@@ -254,6 +254,7 @@ namespace Trickshot
             {
                 shot.zone = hitZone.zone;
                 shot.killed = hitTarget.TakeHit(hitZone.zone);
+                if (!shot.killed) PaintSplash.Burst(end, hitTarget.PaintColor, 6, 3f); // a kill makes its own, bigger splash
 
                 // Tick for a hit, a lower tone for a kill, a bright ring for a headshot.
                 if (shot.killed && shot.zone == HitZoneType.Head) Sfx.Play(SfxId.Headshot, hitVolume, headshotClip);
