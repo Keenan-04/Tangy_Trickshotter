@@ -80,7 +80,7 @@ namespace Trickshot
             if (trainer != null) DrawTrainer(trainer, w, h, ui);
 
             Label(new Rect(24f * ui, h - 60f * ui, w, 40f * ui),
-                (trainer != null ? "1 2 3 start a round   " : "") + "M menu   WASD move   Space jump   RMB scope   Shift hold breath   LMB fire   R reset position   [ ] sensitivity   Esc free cursor",
+                (trainer != null ? "1 2 3 start a round   " : "") + "M menu   WASD move   Shift sprint   C slide   Space jump   RMB scope   Shift hold breath   LMB fire   R reset position   [ ] sensitivity   Esc free cursor",
                 small, TextAnchor.UpperLeft, Dim);
 
             if (player != null && !player.InputActive)

@@ -21,6 +21,10 @@ namespace Trickshot
         Material skinMaterial;
         Material darkMaterial;
         Quaternion baseRotation;
+        Shader lit;
+        Transform rifleHolder;
+        RifleModel rifleModel;
+        string shownModel;
 
         /// <summary>Builds the figure standing at the origin of its own transform, facing +Z.</summary>
         public static CharacterModel Build(Shader litShader)
@@ -32,6 +36,7 @@ namespace Trickshot
 
         void Assemble(Shader litShader)
         {
+            lit = litShader;
             if (litShader != null)
             {
                 outfitMaterial = new Material(litShader);
@@ -58,6 +63,7 @@ namespace Trickshot
             rifle.SetParent(body, false);
             rifle.localPosition = new Vector3(0.04f, 1.14f, 0.27f);
             rifle.localRotation = Quaternion.Euler(-32f, -74f, 0f);
+            rifleHolder = rifle;
             Part(rifle, PrimitiveType.Cube, "Body", new Vector3(0f, 0f, 0f), new Vector3(0.06f, 0.1f, 0.7f), Vector3.zero, rifleMaterial);
             Part(rifle, PrimitiveType.Cube, "Barrel", new Vector3(0f, 0.02f, 0.62f), new Vector3(0.03f, 0.03f, 0.6f), Vector3.zero, darkMaterial);
             Part(rifle, PrimitiveType.Cube, "Stock", new Vector3(0f, -0.03f, -0.46f), new Vector3(0.05f, 0.13f, 0.26f), Vector3.zero, rifleMaterial);
@@ -91,6 +97,29 @@ namespace Trickshot
         {
             if (outfitMaterial != null) outfitMaterial.color = outfit;
             if (rifleMaterial != null) rifleMaterial.color = rifleFinish;
+        }
+
+        /// <summary>Applies the equipped outfit, rifle finish and rifle. The box rifle stays if the model is missing.</summary>
+        public void SetLoadout(Color outfit, Color rifleFinish, WeaponStats weapon)
+        {
+            SetColors(outfit, rifleFinish);
+            if (rifleHolder == null) return;
+
+            string wanted = weapon != null ? weapon.model : "";
+            if (wanted != shownModel)
+            {
+                shownModel = wanted;
+                if (rifleModel != null) Destroy(rifleModel.gameObject);
+                rifleModel = RifleModel.Spawn(weapon, rifleHolder, lit);
+                if (rifleModel != null) rifleModel.transform.localPosition = new Vector3(0f, 0f, -0.12f);
+
+                foreach (Transform child in rifleHolder)
+                {
+                    bool isModel = rifleModel != null && child == rifleModel.transform;
+                    if (!isModel) child.gameObject.SetActive(rifleModel == null);
+                }
+            }
+            if (rifleModel != null) rifleModel.SetFinish(rifleFinish);
         }
 
         static void Part(Transform parent, PrimitiveType shape, string name, Vector3 position, Vector3 size, Vector3 euler, Material material)

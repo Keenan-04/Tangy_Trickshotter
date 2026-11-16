@@ -5,11 +5,12 @@ namespace Trickshot
 {
     public enum ItemSlot
     {
+        Rifle,
         RifleFinish,
         Outfit
     }
 
-    /// <summary>One thing that can be owned and equipped. For now an item is just a colour.</summary>
+    /// <summary>One thing that can be owned and equipped: a rifle, or a colour for the rifle or the outfit.</summary>
     public class ShopItem
     {
         public string id;
@@ -17,6 +18,7 @@ namespace Trickshot
         public ItemSlot slot;
         public Color color;
         public int price; // 0 = everyone owns it
+        public WeaponStats weapon; // only for rifles
 
         public ShopItem(string id, string name, ItemSlot slot, Color color, int price)
         {
@@ -30,14 +32,44 @@ namespace Trickshot
 
     /// <summary>
     /// TEMPLATE. The player's credits, owned items and loadout, saved in PlayerPrefs.
-    /// The catalogue is a placeholder list of colours; replace it with real items later.
+    /// The catalogue holds the five rifles (models in Resources/Rifles) plus placeholder colours
+    /// for rifle finishes and outfits. Prices and rifle stats are first guesses.
     /// </summary>
     public static class Profile
     {
         public const int StartingCredits = 500;
 
+        static readonly Color RifleSwatch = new Color(0.3f, 0.32f, 0.36f);
+
         public static readonly ShopItem[] Catalog =
         {
+            new ShopItem("rifle.arbalest", "Arbalest", ItemSlot.Rifle, RifleSwatch, 0)
+            {
+                weapon = new WeaponStats { model = "Arbalest", blurb = "Balanced all-rounder", barrelLength = 1.02f,
+                    adsTime = 0.38f, boltTime = 1f, hipSpread = 5f, scopedFov = 15f, sway = 0.25f, recoil = 2.2f, moveScale = 1f }
+            },
+            new ShopItem("rifle.vanta", "Vanta", ItemSlot.Rifle, RifleSwatch, 400)
+            {
+                weapon = new WeaponStats { model = "Vanta", blurb = "Bullpup: quick to scope, kicks hard", barrelLength = 0.76f,
+                    adsTime = 0.32f, boltTime = 1.1f, hipSpread = 5.5f, scopedFov = 16f, sway = 0.3f, recoil = 2.6f, moveScale = 1f }
+            },
+            new ShopItem("rifle.longbow", "Longbow", ItemSlot.Rifle, RifleSwatch, 600)
+            {
+                weapon = new WeaponStats { model = "Longbow", blurb = "Most zoom, steadiest, slowest", barrelLength = 1.04f,
+                    adsTime = 0.46f, boltTime = 1.25f, hipSpread = 6f, scopedFov = 11f, sway = 0.16f, recoil = 2f, moveScale = 0.95f }
+            },
+            new ShopItem("rifle.hammer", "Hammer", ItemSlot.Rifle, RifleSwatch, 900)
+            {
+                weapon = new WeaponStats { model = "Hammer", blurb = "Semi-auto: fast follow-ups, heavy", barrelLength = 1.17f,
+                    adsTime = 0.5f, boltTime = 0.45f, hipSpread = 7f, scopedFov = 14f, sway = 0.35f, recoil = 3.4f, moveScale = 0.9f,
+                    boltSound = false }
+            },
+            new ShopItem("rifle.lumen", "Lumen", ItemSlot.Rifle, RifleSwatch, 1200)
+            {
+                weapon = new WeaponStats { model = "Lumen", blurb = "Fastest scope-in, light, less zoom", barrelLength = 0.9f,
+                    adsTime = 0.28f, boltTime = 0.85f, hipSpread = 4.5f, scopedFov = 17f, sway = 0.3f, recoil = 1.6f, moveScale = 1.05f }
+            },
+
             new ShopItem("finish.black", "Matte Black", ItemSlot.RifleFinish, new Color(0.12f, 0.12f, 0.14f), 0),
             new ShopItem("finish.tangy", "Tangy Orange", ItemSlot.RifleFinish, new Color(1f, 0.55f, 0.05f), 300),
             new ShopItem("finish.arctic", "Arctic White", ItemSlot.RifleFinish, new Color(0.9f, 0.93f, 0.96f), 400),

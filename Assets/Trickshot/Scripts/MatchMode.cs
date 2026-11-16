@@ -20,7 +20,10 @@ namespace Trickshot
     /// </summary>
     public abstract class MatchMode : MonoBehaviour
     {
-        [Header("Arena (placeholder: the training range)")]
+        /// <summary>The map this mode is played on. Null means the training range.</summary>
+        public Arena arena;
+
+        [Header("Used when there is no arena: the training range")]
         public Vector3 origin = Vector3.zero;
         public Vector3 forward = Vector3.forward;
         public float arcDegrees = 35f;
@@ -134,7 +137,23 @@ namespace Trickshot
                 if (IsClear(position)) break;
             }
 
-            Target enemy = Target.Build(position, origin, bodyMaterial, headMaterial);
+            Vector3 lookAt = origin;
+            if (arena != null && arena.enemySpawns != null && arena.enemySpawns.Length > 0)
+            {
+                // On a real map enemies appear at its spawn points and face the player.
+                for (int attempt = 0; attempt < 12; attempt++)
+                {
+                    position = arena.enemySpawns[Random.Range(0, arena.enemySpawns.Length)];
+                    if (IsClear(position)) break;
+                }
+                PlayerController player = PlayerController.Instance;
+                lookAt = player != null ? player.transform.position : arena.playerSpawn;
+                toEnemy = position - lookAt;
+                toEnemy.y = 0f;
+                toEnemy = toEnemy.sqrMagnitude > 0.01f ? toEnemy.normalized : Vector3.forward;
+            }
+
+            Target enemy = Target.Build(position, lookAt, bodyMaterial, headMaterial);
             enemy.name = "Enemy (placeholder)";
             enemy.transform.SetParent(transform, true);
             enemy.strafeAxis = Vector3.Cross(Vector3.up, toEnemy);

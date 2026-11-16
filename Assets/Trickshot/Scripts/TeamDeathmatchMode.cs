@@ -24,6 +24,7 @@ namespace Trickshot
         public override string Summary => "Two teams, respawns on, first to the score limit.";
         public override string[] Rules => new[]
         {
+            arena != null ? "Map: " + arena.name + ", a skyscraper rooftop" : "Map: training range",
             "First team to " + scoreLimit + " kills wins",
             Mathf.RoundToInt(timeLimit / 60f) + " minute time limit; the team ahead wins on time",
             "Respawn " + respawnDelay.ToString("0.#") + " s after a death",

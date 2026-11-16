@@ -17,6 +17,10 @@ namespace Trickshot
         public float wallHeight = 14f;
         public float[] distanceLines = { 15f, 30f, 45f };
 
+        [Header("Maps")]
+        [Tooltip("Middle of the Skyline roof. High up and well away from the range.")]
+        public Vector3 skylinePosition = new Vector3(600f, 250f, 600f);
+
         [Header("Menu")]
         [Tooltip("Where the menu's character stage is built. Keep it out of sight of the range.")]
         public Vector3 menuStagePosition = new Vector3(0f, 0f, -100f);
@@ -57,6 +61,12 @@ namespace Trickshot
             var deathmatch = gameObject.AddComponent<TeamDeathmatchMode>();
             var elimination = gameObject.AddComponent<EliminationMode>();
 
+            // Team Deathmatch is played on the rooftop. It is built far from the range and kept
+            // switched off until a match starts.
+            Arena skyline = SkyscraperArena.Build(litShader, skylinePosition);
+            skyline.root.SetActive(false);
+            deathmatch.arena = skyline;
+
             // Everything starts switched off: the menu turns on whatever the chosen mode needs.
             trainer.enabled = false;
             panelGo.SetActive(false);
@@ -73,6 +83,7 @@ namespace Trickshot
             menu.trainer = trainer;
             menu.matchModes = new MatchMode[] { deathmatch, elimination };
             menu.trainingProps = panelGo;
+            menu.rangeSpawn = player.transform.position;
             menu.menuCamera = menuCamera;
             menu.character = character;
         }

@@ -21,6 +21,10 @@ namespace Trickshot
         public Camera menuCamera;
         public CharacterModel character;
         public string gameTitle = "TANGY TRICKSHOTTER";
+        [Tooltip("Where the player starts on the training range.")]
+        public Vector3 rangeSpawn = new Vector3(0f, 0.1f, 0f);
+        [Tooltip("Where the first-person rifle's grip sits, relative to the camera.")]
+        public Vector3 viewModelHip = new Vector3(0.17f, -0.2f, 0.3f);
 
         public bool InMenu { get; private set; }
 
@@ -32,7 +36,8 @@ namespace Trickshot
             "Flick, strafe and quickscope drills against dummies",
             "Timed rounds with score, headshot rate and accuracy",
             "Settings panel on the range: strafing, head size, round length",
-            "Round score earns credits for the store"
+            "Round score earns credits for the store",
+            "Map: training range"
         };
 
         static readonly Color Tangy = new Color(1f, 0.62f, 0.1f);
@@ -46,6 +51,12 @@ namespace Trickshot
         int selected; // 0 = Training, then matchModes in order
         GUIStyle style;
         float ui = 1f;
+        ItemSlot shownSlot = ItemSlot.Rifle;
+        RifleModel viewRifle;
+        string shownWeaponId;
+        bool fallbackSaved;
+        Transform fallbackMuzzle;
+        Vector3 fallbackAdsOffset;
 
         int ModeCount => 1 + matchModes.Length;
 
@@ -110,8 +121,15 @@ namespace Trickshot
                 rifle.enabled = true;
             }
             if (hud != null) hud.enabled = true;
+
+            // Training and any mode without a map of its own use the range.
+            Arena arena = mode > 0 ? matchModes[mode - 1].arena : null;
+            if (arena != null && arena.root != null) arena.root.SetActive(true);
+
             if (player != null)
             {
+                if (arena != null) player.SetSpawn(arena.playerSpawn, arena.playerRotation);
+                else player.SetSpawn(rangeSpawn, Quaternion.identity);
                 player.enabled = true;
                 player.Respawn();
                 player.SetCursorLocked(true);
@@ -136,19 +154,66 @@ namespace Trickshot
             if (trainingProps != null) trainingProps.SetActive(false);
             foreach (MatchMode m in matchModes)
             {
-                if (m != null) m.enabled = false;
+                if (m == null) continue;
+                m.enabled = false;
+                if (m.arena != null && m.arena.root != null) m.arena.root.SetActive(false);
             }
         }
 
-        // Puts the equipped colours on the menu character and on the first-person rifle.
+        // Puts the equipped rifle, finish and outfit on the menu character and on the player.
         void ApplyLoadout()
         {
             Color outfit = Profile.Equipped(ItemSlot.Outfit).color;
             Color finish = Profile.Equipped(ItemSlot.RifleFinish).color;
+            ShopItem rifleItem = Profile.Equipped(ItemSlot.Rifle);
+            WeaponStats weapon = rifleItem != null ? rifleItem.weapon : null;
 
-            if (character != null) character.SetColors(outfit, finish);
+            if (character != null) character.SetLoadout(outfit, finish, weapon);
+            if (rifle == null) return;
 
-            if (rifle != null && rifle.viewModel != null)
+            rifle.ApplyWeapon(weapon);
+            if (player != null) player.WeaponMoveScale = weapon != null ? weapon.moveScale : 1f;
+            if (rifle.viewModel == null) return;
+
+            if (!fallbackSaved)
+            {
+                fallbackSaved = true;
+                fallbackMuzzle = rifle.muzzle;
+                fallbackAdsOffset = rifle.viewModelAdsOffset;
+            }
+
+            // Swap the first-person rifle only when a different one is equipped.
+            string id = rifleItem != null ? rifleItem.id : "";
+            if (id != shownWeaponId)
+            {
+                shownWeaponId = id;
+                if (viewRifle != null) Destroy(viewRifle.gameObject);
+                viewRifle = RifleModel.Spawn(weapon, rifle.viewModel.transform, Shader.Find("Universal Render Pipeline/Lit"));
+
+                foreach (Transform child in rifle.viewModel.transform)
+                {
+                    bool isModel = viewRifle != null && child == viewRifle.transform;
+                    if (!isModel) child.gameObject.SetActive(viewRifle == null); // the box rifle is the fallback
+                }
+
+                if (viewRifle != null)
+                {
+                    viewRifle.transform.localPosition = viewModelHip;
+                    rifle.muzzle = viewRifle.muzzle;
+                    rifle.viewModelAdsOffset = -(viewModelHip + viewRifle.eyeLocal); // brings the scope to the eye
+                }
+                else
+                {
+                    rifle.muzzle = fallbackMuzzle;
+                    rifle.viewModelAdsOffset = fallbackAdsOffset;
+                }
+            }
+
+            if (viewRifle != null)
+            {
+                viewRifle.SetFinish(finish);
+            }
+            else
             {
                 foreach (Renderer r in rifle.viewModel.GetComponentsInChildren<Renderer>(true))
                 {
@@ -237,60 +302,76 @@ namespace Trickshot
                 18f, TextAnchor.MiddleLeft, Dim);
         }
 
-        void DrawInventory()
+        // Rifle / finish / outfit switch shared by the Inventory and Store tabs.
+        void DrawSlotChips(float y)
         {
-            float y = 232f;
-            Text(R(70f, y, 760f, 30f), "TEMPLATE  -  what you own. Click to equip.", 18f, TextAnchor.MiddleLeft, Dim);
-            y += 40f;
-
+            int i = 0;
             foreach (ItemSlot slot in System.Enum.GetValues(typeof(ItemSlot)))
             {
-                Text(R(70f, y, 760f, 40f), SlotName(slot), 26f, TextAnchor.MiddleLeft, Tangy);
-                y += 44f;
+                bool current = slot == shownSlot;
+                if (Button(R(70f + i * 250f, y, 236f, 44f), SlotName(slot), 20f, current ? RowSelected : Row, Color.white)) shownSlot = slot;
+                i++;
+            }
+        }
 
-                ShopItem worn = Profile.Equipped(slot);
-                foreach (ShopItem item in Profile.Catalog)
-                {
-                    if (item.slot != slot || !Profile.Owns(item)) continue;
-                    ItemRow(item, y, null);
+        void DrawInventory()
+        {
+            Text(R(70f, 212f, 760f, 28f), "What you own. Click to equip.", 18f, TextAnchor.MiddleLeft, Dim);
+            DrawSlotChips(250f);
 
-                    Rect b = R(630f, y + 8f, 190f, 44f);
-                    if (item == worn) Button(b, "EQUIPPED", 20f, Good, Color.white, false);
-                    else if (Button(b, "EQUIP", 20f, Tangy, Color.black)) Profile.Equip(item);
-                    y += 66f;
-                }
-                y += 12f;
+            float y = 312f;
+            ShopItem worn = Profile.Equipped(shownSlot);
+            foreach (ShopItem item in Profile.Catalog)
+            {
+                if (item.slot != shownSlot || !Profile.Owns(item)) continue;
+                ItemRow(item, y);
+
+                Rect b = R(630f, y + 8f, 190f, 44f);
+                if (item == worn) Button(b, "EQUIPPED", 20f, Good, Color.white, false);
+                else if (Button(b, "EQUIP", 20f, Tangy, Color.black)) Profile.Equip(item);
+                y += 66f;
             }
         }
 
         void DrawStore()
         {
-            float y = 232f;
-            Text(R(70f, y, 760f, 30f), "TEMPLATE  -  earn credits in Training and by winning matches.", 18f, TextAnchor.MiddleLeft, Dim);
-            y += 44f;
+            Text(R(70f, 212f, 760f, 28f), "Earn credits in Training and by winning matches.", 18f, TextAnchor.MiddleLeft, Dim);
+            DrawSlotChips(250f);
 
+            float y = 312f;
+            bool any = false;
             foreach (ShopItem item in Profile.Catalog)
             {
-                if (item.price <= 0) continue;
-                ItemRow(item, y, SlotName(item.slot));
+                if (item.slot != shownSlot || item.price <= 0) continue;
+                any = true;
+                ItemRow(item, y);
 
                 Rect b = R(630f, y + 8f, 190f, 44f);
                 if (Profile.Owns(item)) Button(b, "OWNED", 20f, Row, Color.white, false);
                 else if (Button(b, item.price.ToString("N0"), 22f, Tangy, Color.black, Profile.Credits >= item.price)) Profile.Buy(item);
                 y += 66f;
             }
+            if (!any) Text(R(70f, y, 760f, 40f), "Nothing to buy here yet.", 20f, TextAnchor.MiddleLeft, Dim);
         }
 
         // Background, colour swatch and name of one item. The caller adds the button on the right.
-        void ItemRow(ShopItem item, float y, string note)
+        void ItemRow(ShopItem item, float y)
         {
             Fill(R(70f, y, 760f, 60f), Row);
             Fill(R(82f, y + 8f, 44f, 44f), item.color);
             Text(R(144f, y, 320f, 60f), item.name, 24f, TextAnchor.MiddleLeft, Color.white);
-            if (note != null) Text(R(410f, y, 200f, 60f), note, 18f, TextAnchor.MiddleLeft, Dim);
+            if (item.weapon != null) Text(R(290f, y, 330f, 60f), item.weapon.blurb, 16f, TextAnchor.MiddleLeft, Dim);
         }
 
-        static string SlotName(ItemSlot slot) => slot == ItemSlot.RifleFinish ? "RIFLE FINISH" : "OUTFIT";
+        static string SlotName(ItemSlot slot)
+        {
+            switch (slot)
+            {
+                case ItemSlot.Rifle: return "RIFLE";
+                case ItemSlot.RifleFinish: return "RIFLE FINISH";
+                default: return "OUTFIT";
+            }
+        }
 
         // A rectangle given in 1080p units, scaled to the real screen.
         Rect R(float x, float y, float w, float h) => new Rect(x * ui, y * ui, w * ui, h * ui);

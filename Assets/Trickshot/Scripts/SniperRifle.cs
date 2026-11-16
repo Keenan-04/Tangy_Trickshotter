@@ -74,6 +74,8 @@ namespace Trickshot
         [Range(0f, 1f)] public float hitVolume = 0.9f;
         [Tooltip("Seconds after the shot that the bolt sound starts.")]
         public float boltSoundDelay = 0.3f;
+        [Tooltip("Off for self-loading rifles, which have no bolt to work.")]
+        public bool playBoltSound = true;
 
         public bool IsAiming { get; private set; }
         /// <summary>0 = at the hip, 1 = fully scoped.</summary>
@@ -167,6 +169,19 @@ namespace Trickshot
             }
         }
 
+        /// <summary>Takes on the handling of the equipped rifle.</summary>
+        public void ApplyWeapon(WeaponStats weapon)
+        {
+            if (weapon == null) return;
+            adsTime = weapon.adsTime;
+            boltTime = weapon.boltTime;
+            hipSpreadDegrees = weapon.hipSpread;
+            scopedFov = weapon.scopedFov;
+            swayDegrees = weapon.sway;
+            recoilKick = weapon.recoil;
+            playBoltSound = weapon.boltSound;
+        }
+
         void UpdateBreath(float dt)
         {
             bool wantsHold = IsAiming && IsFullyScoped && TSInput.HoldBreathHeld;
@@ -196,7 +211,7 @@ namespace Trickshot
         {
             cooldown = boltTime;
             Sfx.Play(SfxId.Shot, fireVolume, fireClip);
-            Sfx.PlayDelayed(SfxId.Bolt, boltSoundDelay, 0.6f, boltClip);
+            if (playBoltSound) Sfx.PlayDelayed(SfxId.Bolt, boltSoundDelay, 0.6f, boltClip);
 
             bool scoped = IsScoped;
 
